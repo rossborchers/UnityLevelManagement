@@ -9,84 +9,83 @@ namespace LevelManagement.Editor
     [InitializeOnLoad]
     public class LevelBootstrapper
     {
-        public const string BOOTSTRAP_TOGGLE = "LevelManagement/Bootstrap Base Level";
-        public const string AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE = "LevelManagement/Auto Bootstrap Open Scene";
-        public const string AUTO_BOOTSTRAP_EDITOR_SCENE = "LevelManagement/LastLoadedEditorScene";
-
+        public const string LAST_LOADED_EDITOR_SCENE = "LevelManagement/LastLoadedEditorScene";
+        
         static LevelBootstrapper()
         {
-            /// Delaying until first editor tick so that the menu
-            /// will be populated before setting check state, and
-            /// re-apply correct action.
-            /// The same goes for getting the preference from EditorPrefs
-            /// as it might not be initialized during the constructor call time
+            // Delaying until first editor tick so that the menu
+            // will be populated before setting check state, and
+            // re-apply correct action.
+            // The same goes for getting the preference from EditorPrefs
+            // as it might not be initialized during the constructor call time
             EditorApplication.delayCall += () =>
             {
-                EditorSceneManager.activeSceneChangedInEditMode += (Scene current, Scene next) =>
+                EditorSceneManager.activeSceneChangedInEditMode += (current, next) =>
                 {
-                    Debug.Log("Active Scene changed to: " + next.name);
-                    EditorPrefs.SetString(AUTO_BOOTSTRAP_EDITOR_SCENE, next.name);
+                    EditorPrefs.SetString(LAST_LOADED_EDITOR_SCENE, next.name);
                 };
 
-                if (EditorBuildSettings.scenes.Length > 0)
+                EditorApplication.playModeStateChanged += change =>
                 {
-                    bool bootstrapOn = EditorPrefs.GetBool(BOOTSTRAP_TOGGLE, true);
-                    EnableBootstrapScene(bootstrapOn);
-                }
+                    if (change == PlayModeStateChange.ExitingEditMode)
+                    {
+                        EnableBootstrapScene(true);
+                    }
+                };
+                EnableBootstrapScene(true);
             };
         }
 
-        private static void EnableBootstrapScene(bool enable)
+        private static void EnableBootstrapScene( bool logInfo = false)
         {
-            if (enable)
+            string[] paths = AssetDatabase.FindAssets("t:LevelDefinitions");
+            string foundGuid = null;
+               
+            if (paths.Length > 1)
             {
-                // Set Play Mode scene to first scene defined in build settings. This is assumed to be the bootstrapper
-                EditorSceneManager.playModeStartScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(EditorBuildSettings.scenes[0].path);
+                string path = AssetDatabase.GUIDToAssetPath(paths[0]);
+                Debug.LogError("[LevelBootstrapper] Found multiple level definitions assets in project." +
+                               $" Please ensure there is only one. Using first found: {path}");
+            }
+
+            if (paths.Length > 0)
+            {
+                foundGuid = paths[0];
             }
             else
             {
+                Debug.LogError("[LevelBootstrapper] Could not find level definitions asset. Please add one to your project.");
+            }
+
+            if (string.IsNullOrEmpty(foundGuid))
+            {
                 EditorSceneManager.playModeStartScene = null;
+            }
+            else
+            {
+                string foundPath = AssetDatabase.GUIDToAssetPath(foundGuid);
+                LevelDefinitions definitions = (LevelDefinitions) AssetDatabase.LoadAssetAtPath(foundPath, typeof(LevelDefinitions));
+
+                if (definitions.BootstrapStartSceneInEditor)
+                {
+                    EditorSceneManager.playModeStartScene = AssetDatabase.LoadAssetAtPath<SceneAsset>(definitions.StartScene);
+
+                    if (logInfo)
+                    {
+                        Debug.Log($"<b>[LevelManagement]</b> Loading <i>{definitions.StartScene.ScenePath}</i> on play.");
+                    }
+                }
+                else
+                {
+                    EditorSceneManager.playModeStartScene = null;
+                    if (logInfo)
+                    {
+                        Debug.Log($"<b>[LevelManagement]</b> Loading open scene on play.");
+                    }
+                }
+             
             }
         }
 
-        [MenuItem(BOOTSTRAP_TOGGLE)]
-        private static void ToggleBootstrapper()
-        {
-            bool bootstrapOn = EditorPrefs.GetBool(BOOTSTRAP_TOGGLE, true);
-            bootstrapOn = !bootstrapOn;
-
-            EditorPrefs.SetBool(BOOTSTRAP_TOGGLE, bootstrapOn);
-            Menu.SetChecked(BOOTSTRAP_TOGGLE, bootstrapOn);
-
-            EnableBootstrapScene(bootstrapOn);
-        }
-
-        [MenuItem(BOOTSTRAP_TOGGLE, validate = true)]
-        private static bool ValidateToggleBootstrapper()
-        {
-            bool bootstrapOn = EditorPrefs.GetBool(BOOTSTRAP_TOGGLE, true);
-            Menu.SetChecked(BOOTSTRAP_TOGGLE, bootstrapOn);
-
-            // Ensure at least one build scene exist.
-            return EditorBuildSettings.scenes.Length > 0;
-        }
-
-        [MenuItem(AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE)]
-        private static void ToggleAutoBootstrapCurrentScene()
-        {
-            bool autoBootstrapCurrentScene = EditorPrefs.GetBool(AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE, false);
-            autoBootstrapCurrentScene = !autoBootstrapCurrentScene;
-
-            EditorPrefs.SetBool(AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE, autoBootstrapCurrentScene);
-            Menu.SetChecked(AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE, autoBootstrapCurrentScene);
-        }
-
-        [MenuItem(AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE, validate = true)]
-        private static bool ValidateToggleAutoBootstrapCurrentScene()
-        {
-            bool autoBootstrapCurrentScene = EditorPrefs.GetBool(AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE, false);
-            Menu.SetChecked(AUTO_BOOTSTRAP_CURRENT_SCENE_TOGGLE, autoBootstrapCurrentScene);
-            return true;
-        }
     }
 }

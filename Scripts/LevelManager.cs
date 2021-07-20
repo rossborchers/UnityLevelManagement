@@ -5,17 +5,17 @@ using UnityEngine.SceneManagement;
 
 namespace LevelManagement
 {
-    public class LevelManager : MonoBehaviour
+    public abstract class LevelManager : MonoBehaviour
     {
-        [SerializeField] protected LevelDefinition _levelDefinition;
+        [SerializeField] protected LevelDefinitions _levelDefinitions;
 
         private string _activeLevel = null;
         private Stack<string> _activePostloadScenes = new Stack<string>();
 
-        private LevelDefinition.Level GetLevelData(string levelName)
+        private LevelDefinitions.Level GetLevelData(string levelName)
         {
-            LevelDefinition.Level level = null;
-            foreach (LevelDefinition.Level l in _levelDefinition.Levels)
+            LevelDefinitions.Level level = null;
+            foreach (LevelDefinitions.Level l in _levelDefinitions.Levels)
             {
                 if (l.LevelName.ToLower().Trim() == levelName.ToLower().Trim())
                 {
@@ -25,7 +25,7 @@ namespace LevelManagement
 
             if (level == null)
             {
-                throw new Exception("[LevelManager] Failed to find level in LevelData. Critical.");
+                throw new Exception("<b>[LevelManagement]</b> Failed to find level in LevelData. Critical.");
             }
 
             return level;
@@ -51,19 +51,19 @@ namespace LevelManagement
             if (_activeLevel != null)
             {
                 Debug.LogWarning(
-                    "[LevelManager] Loading level when there is already one loaded. Can not load multiple levels at once. Unloading before loading." +
+                    "<b>[LevelManagement]</b> Loading level when there is already one loaded. Can not load multiple levels at once. Unloading before loading." +
                     "If you want multiple levels consider making scenes part of one level stacks. If you want to unload the old level please make it explicit by calling LoadLevel in the onFinished callback of UnloadLevel");
                 Busy = false;
                 UnloadLevel(() => { LoadLevel(levelName, finishedIntercept); });
             }
 
-            LevelDefinition.Level level = GetLevelData(levelName);
+            LevelDefinitions.Level level = GetLevelData(levelName);
 
             _activeLevel = level.LevelName;
             LoadStack(level.SceneStack, finishedIntercept);
         }
 
-        private void LoadStack(List<string> remainingScenes, Action onFinished)
+        private void LoadStack(List<SceneReference> remainingScenes, Action onFinished)
         {
             if (remainingScenes.Count == 0)
             {
@@ -71,7 +71,7 @@ namespace LevelManagement
                 return;
             }
 
-            List<string> scenes = new List<string>(remainingScenes);
+            List<SceneReference> scenes = new List<SceneReference>(remainingScenes);
             string toLoad = scenes[0];
             scenes.RemoveAt(0);
 
@@ -105,7 +105,7 @@ namespace LevelManagement
 
             if (_activeLevel == null)
             {
-                Debug.LogWarning("[LevelManager] Unloading level but there are none loaded. Skipping.");
+                Debug.LogWarning("<b>[LevelManagement]</b> Unloading level but there are none loaded. Skipping.");
                 finishedIntercept();
             }
 
