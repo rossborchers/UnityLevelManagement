@@ -13,5 +13,6 @@ Provides an implementation of "Levels" as stacks of scenes that are loaded and u
 TODO:
 - Convert to async
 - Persistent scenes across multiple levels
+- Better readme
 
 Uses [Unity Scene Reference](https://github.com/JohannesMP/unity-scene-reference) to handle dragging and dropping scenes.
